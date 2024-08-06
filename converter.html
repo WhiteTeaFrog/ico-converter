@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Конвертер PNG в ICO (с сохранением пикселей)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        #fileInput {
+            margin: 1rem 0;
+        }
+        #convertBtn, #downloadBtn {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        #convertBtn:disabled, #downloadBtn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 1rem;
+        }
+        #loading {
+            display: none;
+            margin-top: 1rem;
+        }
+        #pixelPerfect {
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Конвертер PNG в ICO (с сохранением пикселей)</h1>
+        <input type="file" id="fileInput" accept=".png">
+        <br>
+        <label>
+            <input type="checkbox" id="pixelPerfect" checked>
+            Сохранять пиксельную четкость
+        </label>
+        <br>
+        <button id="convertBtn" disabled>Конвертировать</button>
+        <div id="loading">Конвертация...</div>
+        <div id="result"></div>
+        <button id="downloadBtn" style="display: none;">Скачать ICO</button>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const convertBtn = document.getElementById('convertBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const result = document.getElementById('result');
+        const loading = document.getElementById('loading');
+        const pixelPerfect = document.getElementById('pixelPerfect');
+        let iconBlob = null;
+
+        function showLoading(show) {
+            loading.style.display = show ? 'block' : 'none';
+            convertBtn.disabled = show;
+        }
+
+        function resizeImage(img, width, height, pixelPerfect) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            if (pixelPerfect) {
+                ctx.imageSmoothingEnabled = false;
+                const scaleX = width / img.width;
+                const scaleY = height / img.height;
+                const scale = Math.min(scaleX, scaleY);
+                
+                const scaledWidth = img.width * scale;
+                const scaledHeight = img.height * scale;
+                const dx = (width - scaledWidth) / 2;
+                const dy = (height - scaledHeight) / 2;
+                
+                ctx.drawImage(img, dx, dy, scaledWidth, scaledHeight);
+            } else {
+                ctx.drawImage(img, 0, 0, width, height);
+            }
+            
+            return canvas;
+        }
+
+        fileInput.addEventListener('change', () => {
+            convertBtn.disabled = !fileInput.files.length;
+            downloadBtn.style.display = 'none';
+        });
+
+        convertBtn.addEventListener('click', () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            showLoading(true);
+            result.textContent = '';
+            downloadBtn.style.display = 'none';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = resizeImage(img, 256, 256, pixelPerfect.checked);
+                    
+                    canvas.toBlob((blob) => {
+                        iconBlob = blob;
+                        result.textContent = 'Конвертация завершена!';
+                        downloadBtn.style.display = 'inline-block';
+                        showLoading(false);
+                    }, 'image/x-icon');
+                };
+                img.src = e.target.result;
+            };
+            reader.onerror = function(error) {
+                result.textContent = `Произошла ошибка при чтении файла: ${error.message}`;
+                showLoading(false);
+            };
+            reader.readAsDataURL(file);
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (iconBlob) {
+                const url = URL.createObjectURL(iconBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'icon.ico';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        });
+    </script>
+</body>
+</html>
